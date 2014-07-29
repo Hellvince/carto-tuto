@@ -161,7 +161,7 @@ La fonction `ogrInfo` permet de scanner les données que l'on veut manipuler, de
 
 ```{r}
 # Emplacement de l'archive décompressée, à remplacer par le votre
-pathToShp <- "D:/Documents de vcanuel/Work/carto/source/communes"
+pathToShp <- "./data/shp"
 # Description des données via orgInfo
 # Attention à ne pas mettre l'extension à la fin du nom
 ogrInfo(pathToShp,layer="COMMUNE")
@@ -208,7 +208,7 @@ Pour gagner du temps, vous trouverez [ici](distance_hospit_Etalab.csv) une versi
 Commençons par importer nos données : 
 ```{r}
 # Emplacement des données, à remplacer par le votre
-pathToData <- "D:/Dropbox/Dropbox/carto/distance_hospit_Etalab.csv"
+pathToData <- "./data/distance_hospit_Etalab.csv"
 # Import des données en respectant le format "Character" des codes communes
 tempsTrajet <- read.csv2(pathToData, stringsAsFactor = FALSE, colClasses = c("character", "integer")) 
 # Verification import
