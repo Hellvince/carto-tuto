@@ -164,7 +164,7 @@ La fonction `ogrInfo` permet de scanner les données que l'on veut manipuler, de
 pathToShp <- "./data/shp"
 # Description des données via orgInfo
 # Attention à ne pas mettre l'extension à la fin du nom
-ogrInfo(pathToShp,layer="COMMUNE")
+ogrInfo(dsn = pathToShp,layer="COMMUNE")
 ```
 
 Ici, on voit que les données sont correctement reconnues (driver adapté au format ESRI Shapefile, le SRS est reconnu, les données associées sont bien présentes). A noter que **pour accéder directement aux données de coordonnées/projection** (pour vérifier ou modifier ces informations), il est plus simple d'utiliser directement la fonction `proj4string()`.
@@ -172,7 +172,7 @@ Ici, on voit que les données sont correctement reconnues (driver adapté au for
 Les données étant OK, on importe le fichier SHP et ses données associées, afin de créer un objet nommé ici `comm`. On regarde ensuite la structure de l'objet crée par `sp` ;
 ```{r}
 # Import via la fonction readOGR
-comm <- readOGR(pathToShp, layer="COMMUNE", stringsAsFactors=FALSE)
+comm <- readOGR(dsn = pathToShp, layer="COMMUNE", stringsAsFactors=FALSE)
 # Description de la structure globale
 str(comm, 2)
 ```
@@ -210,7 +210,7 @@ Commençons par importer nos données :
 # Emplacement des données, à remplacer par le votre
 pathToData <- "./data/distance_hospit_Etalab.csv"
 # Import des données en respectant le format "Character" des codes communes
-tempsTrajet <- read.csv2(pathToData, stringsAsFactor = FALSE, colClasses = c("character", "integer")) 
+tempsTrajet <- read.csv2(file = pathToData, stringsAsFactor = FALSE, colClasses = c("character", "integer")) 
 # Verification import
 str(tempsTrajet)
 ```
@@ -275,6 +275,3 @@ Le choix d'une palette de couleur pour un graphique n'est pas forcément facile.
 Le package `RBrewerColor` facilite cette tâche, en proposant différentes palettes adaptées au nombre de classes (donc de couleurs) voulues, et adaptée au mode de représentation désiré (données séquentielles, divergeantes ou qualitatives). Les palettes *séquentielles* vont être adaptée à des données ordonnées et traduisent l'idée de progression (ex : jaune = faible valeur, rouge = forte valeur). Les palettes *divergeantes* permettent de mettre en avant les valeurs extrêmes, et en retrait les valeurs centrales. Enfin, les palettes *qualitatives* sont utilisables pour des variables où les catégories n'ont pas lien de valeur entre elles (ex : blond ou roux). 
 
 Pour avoir un aperçu des palettes disponibles, vous pouvez utiliser la fonction `display.brewer.all()`. Pour plus d'information (sur le nom des palettes, etc...), référez-vous à la documentation du *package*.
-
-?classIntervals
-
