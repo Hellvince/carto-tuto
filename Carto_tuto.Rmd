@@ -1,7 +1,7 @@
 ---
 title: "Cartographie sous R : théorie et pratique"
 author: "Vincent CANUEL"
-date: "12 Juillet 2014"
+date: "Décembre 2014"
 output:
   html_document:
     number_sections: yes
@@ -16,7 +16,7 @@ L'utilisation de R peut s'avérer judicieuse quand il s'agit d'intoduire la prod
 Ce document a pour but :
 
 * d'**introduire les principales notions théoriques** en terme de cartographie 
-* de **montrer en pratique comment réaliser une carte** à l'aide des principaux packages (dont `rgdal`, `sp`, `rCarto`)
+* de **montrer en pratique comment réaliser une carte** à l'aide des principaux packages (dont `rgdal`, `sp`)
 
 Les problématiques liées à l'analyse spatiale sous R ne seront pas traitées ici.
 
@@ -64,6 +64,7 @@ De nos jours, les données géolocalisées ne sont pas ce qui manque. Les donné
 En fonction du type de données (zone/point), l'exploitation qui peut en être faite va varier. Avec des données de zone, il est possible de créer des cartes à bases d'aplat de couleurs, ou [carte choroplèthe](http://fr.wikipedia.org/wiki/Carte_choropl%C3%A8the). Avec des données de points, on utilisera plutôt des représentations ponctuelles (ex : un point de taille variable, en fonction de la valeur) ou des représentation de densité/intensité (carte de chaleur, ou [heatmap](http://en.wikipedia.org/wiki/Heatmap)).
 
 Pour les données de zone, on a généralement des données au format suivant : 
+
 - une **colonne pour l'identifiant** de la zone concernée
 - une ou plusieurs colonnes contenant les **valeurs des variables d'intérêt** (ex : population/m², nombre d'hospitalisations...)
 
@@ -71,6 +72,7 @@ L'enjeux sera alors généralement de fusionner sous R ces informations de zones
 A noter que dans ce cas là, les problèmes de coordonnées/projection ne se posent qu'à la création de l'objet spatial, pas à l'import des données. 
 
 Pour les données ponctuelles, on a généralement les données au format suivant :
+
 - une colonne longitude
 - une colonne latitude
 - une ou plusieurs colonnes contenant les valeurs des variables d'intérêt
@@ -117,9 +119,9 @@ Pour trouver un code EPSG, on pourra se référer aux sites internet [spatialref
 
 # Cartographie sous R : pratique
 
-Nous allons utiliser les packages `sp` et `rgdal` pour importer un fond de carte reprenant le tracé des communes de France. Nous travaillerons ensuite sur l'Ile-de-France : des données extérieures sur le temps de parcours pour hospitalisation seront jointes à notre object spatial, et une carte basée sur ces données sera produite.  
+Nous allons utiliser les packages `sp` et `rgdal` pour importer un fond de carte au format SHP reprenant le tracé des communes de France. Nous travaillerons ensuite sur l'Ile-de-France : des données extérieures sur le temps de parcours pour hospitalisation seront jointes à notre object spatial, et une carte basée sur ces données sera produite.  
 Les packages `RColorBrewer` et `classInt` seront utilisés pour sélectionner des groupes de couleurs adaptées, et pour catégoriser simplement des variables, respectivement.  
-Le rendu des carte se fera par l'intermédiaire de plusieurs *packages* : le package `base`, partie intégrante de la distribution standard de R, le package `ggplot2` très souvent utilisé pour la production de graphique de qualité et les packages `rCarto` , `maptools` et `ggmap` (dérivé de `ggplot2`) dédiés à la cartographie.
+Le rendu des carte se fera par l'intermédiaire du package `base`, partie intégrante de la distribution standard de R. D'autres packages, comme `ggplot2` , `rCarto` , `maptools` ou `ggmap` (un dérivé de `ggplot2`) peuvent être utilisés. Des exemples utilisant ces packages seront ajoutés à l'avenir. 
 
 Première chose à faire : installer et charger les packages nécessaires
 ```{r eval=FALSE}
@@ -154,11 +156,16 @@ On récupère sur le site de l'IGN la carte et ses données associées (fichier 
 
 Le fichier 7z (format 7zip, lisible par le logiciel du même nom) contient un ensemble de dossiers/sous-dossiers. Les informations qui nous intéressent sont dans un sous-dossier du type **DONNEES_LIVRAISON**. Décompressez l'ensemble des fichiers de ce sous-dossier. Nous allons enfin pouvoir passer à la fabrication de la carte dans R. De manière général, il est recommandé de vérifier que les données qu'on va manipuler sont correctement reconnues dans R. Ceci s'applique à toutes les situations, et la cartographie ne fait pas exception. 
 
+## Chargement des données spatiales
+
+Il existe plusieurs façons de charger des données spatiales dans R, faisant intervenir différents packages. Ici, nous utilserons uniquement les fonctions de chargement issus du packages `rgdal`. Ce package est une interface entre R et la "Geospatial Abstraction Library" (GDAL), une bibliothèque de fonctions dédiées aux manipulations de données spatiales très largement utilisée.
+
 La fonction `ogrInfo` permet de scanner les données que l'on veut manipuler, de façon à vérifier qu'elles seront bien lues et reconnues par la suite. Cette fonction `ogrInfo` (tout comme `readOGR`, qu'on va voir plus loin) prend 2 arguments indispensables :
 
 * **le chemin pointant vers le fichier SHP et ses données associées**. Si vos données sont dans le répertoire courant de travail sous R, il est quand même nécessaire de remplir cet argument, avec "." (le point . désignant sous R le répertoire de travail courant)
 * **le nom du layer**, c'est-à-dire le nom du fichier .SHP (sans mettre l'extension au bout). Il est communément admis que l'ensemble des fichiers relatifs au fichier SHP portent le même nom, seule l'extension change. Ex : COMMUNE.SHP est accompagné de COMMUNE.PROJ, de COMMUNE.DBF, etc. Ainsi, avec une commande, R va charger le SHP, reconnaitre la projection et charger les données associées...
 
+On commence par déterminer l'emplacement de notre fichier SHP, et on scan son contenu :
 ```{r}
 # Emplacement de l'archive décompressée, à remplacer par le votre
 pathToShp <- "./data/shp"
@@ -169,24 +176,27 @@ ogrInfo(dsn = pathToShp,layer="COMMUNE")
 
 Ici, on voit que les données sont correctement reconnues (driver adapté au format ESRI Shapefile, le SRS est reconnu, les données associées sont bien présentes). A noter que **pour accéder directement aux données de coordonnées/projection** (pour vérifier ou modifier ces informations), il est plus simple d'utiliser directement la fonction `proj4string()`.
 
-Les données étant OK, on importe le fichier SHP et ses données associées, afin de créer un objet nommé ici `comm`. On regarde ensuite la structure de l'objet crée par `sp` ;
+Les données étant OK, on peut importer le fichier SHP et ses données associées via la fonction `readOGR()`, afin de créer un objet nommé ici `comm`. On regarde ensuite la structure de l'objet crée par `rgdal` ;
 ```{r}
-# Import via la fonction readOGR 
+# Import via la fonction readOGR de rgdal
+# Pour info, d'autres outils existent (ex : fonction readShapeSpatial() du package maptools)
 comm <- readOGR(dsn = pathToShp, layer="COMMUNE", stringsAsFactors=FALSE)
+
 # Description de la structure globale
 str(comm, 2)
 ```
 
-Les objets créés par `sp` ont des structures particulières. Ils sont divisés en plusieurs sous-objets, ou **slots**, préfixé par le symbole `@`. Chaque sous-objet possède sa propre structure, et ses propres informations. Pour y accéder, la commande suit le même motif que pour accéder à une variable dans un dataframe, mais via le symbole `@` au lieu du symbole `$`.
+Les objets créés via `readOGR` ont des structures particulières. Ils sont divisés en plusieurs sous-objets, ou **slots**, préfixé par le symbole `@`. Chaque sous-objet possède sa propre structure, et ses propres informations. Pour y accéder, la commande suit le même motif que pour accéder à une variable dans un dataframe, mais via le symbole `@` au lieu du symbole `$`.
 
-Les informations de géométries, relatives au fichier .SHP, sont stockées dans les slots `@polygons`, `@plotOrder` et `@bbox`. Les données associées, issues du fichier .DBF, sont dans le slot `@data`. Enfin, les données de projection, issues du fichier .PROJ, sont dans un slot à part, `@proj4string`. Pour plus d'informations, vous pouvez regarder la documentation accompagnant cette classe avec la commande `class?SpatialPolygons `. 
+Les informations de géométries, relatives au fichier .SHP, sont stockées dans les slots `@polygons`, `@plotOrder` et `@bbox`. Les données associées, issues du fichier .DBF, sont dans le slot `@data`. Enfin, les données de projection, issues du fichier .PROJ, sont dans un slot à part, `@proj4string`. Pour plus d'informations, vous pouvez regarder la documentation accompagnant cette classe particulière avec la commande `class?SpatialPolygons `. 
 
-Jetons un oeil au slot `@data` :
-
+Jetons par curiosité un oeil au slot `@data` :
 ```{r}
 # Description de la structure des données associées 
 str(comm@data, 2)
 ```
+
+On voit ici le nom des variables importées, et leur format (numérique, charactère...).
 
 De même pour le slot `@polygons` :
 ```{r}
@@ -194,22 +204,53 @@ De même pour le slot `@polygons` :
 head(comm@polygons, n=1)
 ```
 
-Le slot @data Nos données spatiales sont donc correctement importées. On peut dès à présent fabriquer une carte très simple, avec comme fond le contours des communes de l'Ile-de-France (région numéro 11). On peut très bien le faire à l'échelle de la France entière, mais vu le nombre élevé de communes, la production de cette carte risque de prendre un certain temps (vous êtes prévenus !).
+Nos données associées, comme le code INSEE de la commune, son nom, son statut administratif, sa superficie, sa population, etc... sont correctement importées dans notre slot `@data`. 
 
-A titre d'exemple, on utilise ici la nouvelle méthode de `plot`, spécifique à la classe `SpatialPolygons` et ajouté par le package `sp` :
+On peut dès à présent fabriquer une carte très simple représentant les contours des communes, à partir des données spatiales extriates. A titre d'exemple, on va utiliser ici la nouvelle méthode de `plot`, spécifique à la classe `SpatialPolygons` et ajouté par le package `sp`. Concrètement, cet ajout permet d'utiliser la fonction classique `plot` pour représenter graphiquement des objets spatiaux.
 ```{r}
-# On trace le fond de carte avec le package base
-plot(comm[comm$CODE_REG=="11",],)
-# Même chose, mais avec le package ggplot2
+# On représente les contours des communes de France avec la fonction plot
+plot(comm)
 ```
 
-Passons aux données que l'on souhaite afficher sur notre carte. Pour cet exemple, j'ai choisi un jeu de données décrivant la **distance parcourue par un patient pour se rendre sur son lieu d'hospitalisation**. Cette distance est calculée ici en terme **temps moyen de trajet (en minutes)** pour accéder en voiture au lieu d'hospitalisation.
+Il y vraiment beaucoup de communes en France ! Du coup, une telle carte est difficilement lisible et particulièrement longue à créer... Et si on se limitait à l'Ile-de-France pour nos tests ? 
+
+Pour représenter uniquement les communes d'Ile-de-France (astuce : c'est la région numéro 11), il suffit d'appliquer une sélection "classique" à l'objet `comm` grâce aux variables à notre disposition, comme on pourrait le faire avec un dataframe :
+```{r}
+# On plot les communes contenues dans l'Ile-de-France (CODE_REG égal à 11)
+plot(comm[comm$CODE_REG=="11",],)
+```
+
+On obtient donc bien la carte des contours des communes d'Ile-de-France. 
+
+Supposons maintenant qu'on veut faire ressortir de cette carte les communes dont la population est de moins de 10 000 habitants. On peut chaîner les critères de sélections, comme on le fait habituellement via `&` ou `|` :
+```{r}
+# Communes d'IDF avec moins de 10 000 habitants
+plot(comm[comm$CODE_REG=="11" & comm$POPULATION<1,],)
+```
+
+Notre carte ressemble à du gruyère ! C'est normal, puisque R n'a représenté que les communes remplissant nos critères. Les autres communes n'ont donc pas été traitées et sont absentes de la carte... 
+
+Si on souhaite juste faire ressortir les communes d'intérêt, on peut commencer par représenter toutes les communes d'Ile-de-France, puis représenter en rouge les communes de moins de 10 000 habitants uniquement. Par exemple :
+```{r}
+# Représentation de toutes les communes d'IDF
+plot(comm[comm$CODE_REG=="11",])
+# Ajout sur le graphique précédent (via add = TRUE) des communes d'intérêt, remplies en rouge (via col="red") 
+plot(comm[comm$CODE_REG=="11" & comm$POPULATION<1,], col="red", add=TRUE)
+```
+
+C'est déjà mieux ! 
+
+## Utiliser des données externes dans notre carte
+
+Nous avons vu comment créer une carte très simple à partir de données spatiales (issues du .SHP) et des données associées (issues du .DBF). Les données associées sont généralement très limitées, et ne contiennent pas le plus souvent les informations qui nous intéresse réellement. Il est donc nécessaire de marier nos données spatiales avec des données externes.
+
+Pour cet exemple, j'ai choisi un jeu de données décrivant la **distance parcourue par un patient pour se rendre sur son lieu d'hospitalisation**. Cette distance est calculée ici en terme **temps moyen de trajet (en minutes)** pour accéder en voiture au lieu d'hospitalisation.
 Le jeu de donnée original est disponible en accès libre sur le site de l'[OpenData](http://www.data.gouv.fr/fr/dataset/a-quelle-distance-de-chez-soi-se-fait-on-hospitaliser-30378436). Comme d'habitude, le fichier est au format XLS et comporte des mentions (titre, précision, etc...) rendant son utilisation directe impossible.
 Pour gagner du temps, vous trouverez [ici](distance_hospit_Etalab.csv) une version utilisable de la table de données.
 
 Commençons par importer nos données : 
 ```{r}
-# Emplacement des données, à remplacer par le votre
+# Emplacement des données
 pathToData <- "./data/distance_hospit_Etalab.csv"
 # Import des données en respectant le format "Character" des codes communes
 tempsTrajet <- read.csv2(file = pathToData, stringsAsFactor = FALSE, colClasses = c("character", "integer")) 
@@ -217,13 +258,27 @@ tempsTrajet <- read.csv2(file = pathToData, stringsAsFactor = FALSE, colClasses 
 str(tempsTrajet)
 ```
 
-En suivant les indications données dans la partie théorique, on joint ces données à l'objet spatial `comm` précédemment créé :
+Nous avons donc d'un coté notre objet `comm` comprenant nos données spatiales et les données associées, et d'un autre côté notre objet `tempsTrajet` comprenant nos données externes. L'idée est de rajouter nos données externes aux données associées déjà présentes dans notre slot `@data`. De cette façon, on conserve les informations de base (le nom des communes, leur numéro de département, etc...) tout en ajoutant les informations pertinentes pour nos analyses (les temps de trajet).
+
+Plusieurs façons de réaliser cet ajout sont possibles. De façon générale, il faut faire attention à ne pas bousculer l'ordre des données du slot `@data` car ces données sont jointes ligne-à-ligne avec les données spatiale. On peut utiliser la fonction `match()`,la classique fonction `merge()`, voir la fonction `left_join()` issue du package `dplyr` (les habitués du SQL seront en terrain familier).
+
+Pour la beauté de l'exemple, la fonction `match()` est utilisée ici. On constitue un nouveau dataframe, composé d'une part des données originales, et d'autre part des données de temps de trajet, rangées dans le même ordre que les données originales, grâce à `match()`. Les variables clefs permettant d'identifier uniquement chaque commune n'étant pas les mêmes dans les deux jeux de données, elles sont précisées manuellement. 
 ```{r}
 # On remplace le slot @data par un nouveau tableau de données, contenant les anciennes données + les nouvelles
 comm@data <- data.frame(comm@data, tempsTrajet[match(comm@data[, "INSEE_COM"],tempsTrajet[, "commune"]), ])
+head(comm@data)
+```
+On a bien fusionné nos infos, mais on remarque au passage que nous avons récupéré toutes les colonnes de `tempsTrajet`, y compris la variable `commune` qui fait doublon, mais passons.
+
+En étant plus pragmatique, nous aurions pu faire un simple :
+```{r, eval=F}
+# Chargement de dplyr
+library(dplyr)
+# On remplace le slot @data par un nouveau tableau de données, contenant les anciennes données + les nouvelles
+comm@data <- left_join(comm@data, tempsTrajet, by = c("INSEE_COM" = "commune"))
 ```
 
-Imaginons qu'on souhaite produire la carte des temps de trajet, pour la région Ile-De-France. Nous allons réduire notre jeu de données pour ne garder que la région Ile-De-France. Nous allons aussi utiliser `classInt` pour discrétiser notre temps de trajet, et `RColorBrewer` pour choisir des couleurs adaptées à notre nouvelle variable discrète.
+Imaginons maintenant qu'on souhaite produire la carte des temps de trajet, pour la région Ile-De-France. Nous allons réduire notre jeu de données pour ne garder que la région Ile-De-France. Nous allons aussi utiliser `classInt` pour discrétiser notre temps de trajet, et `RColorBrewer` pour choisir des couleurs adaptées à notre nouvelle variable discrète.
 ```{r}
 # Filtrage des données pour ne garder que la région Ile-De-France
 idf <- comm[comm@data$CODE_REG=="11",]
@@ -255,14 +310,6 @@ Il ne reste plus qu'à faire notre carte :
 plot(idf, col = idf@data$temps_cat, border = "black")
 legend("bottomleft", legend = legende, fill = palette, cex=0.6, title = "Temps de parcours moyen (minutes)")
 
-# Avec le package ggplot2
-#ggplot(data = idf)
-
-# Avec le package ggmap
-
-# Avec le package maptools
-
-# Avec le package rCarto
 ````
 
 #Annexe
