@@ -171,7 +171,7 @@ Ici, on voit que les données sont correctement reconnues (driver adapté au for
 
 Les données étant OK, on importe le fichier SHP et ses données associées, afin de créer un objet nommé ici `comm`. On regarde ensuite la structure de l'objet crée par `sp` ;
 ```{r}
-# Import via la fonction readOGR
+# Import via la fonction readOGR 
 comm <- readOGR(dsn = pathToShp, layer="COMMUNE", stringsAsFactors=FALSE)
 # Description de la structure globale
 str(comm, 2)
@@ -179,7 +179,7 @@ str(comm, 2)
 
 Les objets créés par `sp` ont des structures particulières. Ils sont divisés en plusieurs sous-objets, ou **slots**, préfixé par le symbole `@`. Chaque sous-objet possède sa propre structure, et ses propres informations. Pour y accéder, la commande suit le même motif que pour accéder à une variable dans un dataframe, mais via le symbole `@` au lieu du symbole `$`.
 
-Les informations de géométries, relatives au fichier .SHP, sont stockées dans les slots `@polygons`, `@plotOrder` et `@bbox`. Les données associées, issues du fichier .DBF, sont dans le slot `@data`. Enfin, les données de projection, issues du fichier .PROJ, sont dans un slot à part, `@proj4string`.
+Les informations de géométries, relatives au fichier .SHP, sont stockées dans les slots `@polygons`, `@plotOrder` et `@bbox`. Les données associées, issues du fichier .DBF, sont dans le slot `@data`. Enfin, les données de projection, issues du fichier .PROJ, sont dans un slot à part, `@proj4string`. Pour plus d'informations, vous pouvez regarder la documentation accompagnant cette classe avec la commande `class?SpatialPolygons `. 
 
 Jetons un oeil au slot `@data` :
 
@@ -194,10 +194,12 @@ De même pour le slot `@polygons` :
 head(comm@polygons, n=1)
 ```
 
-Le slot @data Nos données spatiales sont donc correctement importées. On peut dès à présent fabriquer une carte très simple, avec comme fond le contours des communes de France. Attention, vu le nombre élevé de communes, la production de la carte prend un certain temps :
-```{r eval=FALSE}
+Le slot @data Nos données spatiales sont donc correctement importées. On peut dès à présent fabriquer une carte très simple, avec comme fond le contours des communes de l'Ile-de-France (région numéro 11). On peut très bien le faire à l'échelle de la France entière, mais vu le nombre élevé de communes, la production de cette carte risque de prendre un certain temps (vous êtes prévenus !).
+
+A titre d'exemple, on utilise ici la nouvelle méthode de `plot`, spécifique à la classe `SpatialPolygons` et ajouté par le package `sp` :
+```{r}
 # On trace le fond de carte avec le package base
-plot(comm)
+plot(comm[comm$CODE_REG=="11",],)
 # Même chose, mais avec le package ggplot2
 ```
 
